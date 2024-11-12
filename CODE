@@ -209,7 +209,7 @@ def subfolder_manager(client_socket, args):
 
 
 # Function to start the server
-def start_server():
+def main():
     """
     Initialize and start the server to listen for client connections.
     """
@@ -230,3 +230,6 @@ def start_server():
         # Display active connection count
         active_threads = threading.active_count() - 1  # Exclude main thread
         print(f"[ACTIVE CONNECTIONS] {active_threads}")
+
+if __name__ == "main":
+    main()
