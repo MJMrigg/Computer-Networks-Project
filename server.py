@@ -10,6 +10,7 @@ ADDR = (IP, PORT)  # Server address (IP, Port)
 SIZE = 1024  # Buffer size for receiving data
 FORMAT = "utf-8"  # Encoding format for messages
 BASE_DIR = "./server_files"  # Directory to store uploaded files
+PASSWORD = "Rosebud26" # Password to access the server
 
 # Ensure base directory exists for file storage
 if not os.path.exists(BASE_DIR):
@@ -49,6 +50,19 @@ def client_handling(conn, addr):
     - addr: address of the client (IP, port)
     """
     print(f"NEW CONNECTION: {addr} connected.")
+
+    # Prompt client to enter password needed to access the server
+    conn.send(rsa.encrypt("Please Enter Password".encode(FORMAT), public_key))
+    password = conn.recv(SIZE) # password the client entered
+    if not password:
+        return
+    passowrd = rsa.decrypt(password, private_key).decode(FORMAT) # Decrypt it
+    if password != PASSWORD: # If it was not the correct PASSWORD, deny the client access to the server
+        conn.send(rsa.encrypt("Access Denied. Have a good day!").encode(FORMAT), public_key)
+        print(f"{addr} was disconnected")
+        conn.close()
+        return
+
     # Send welcome message to client
     conn.send(rsa.encrypt("OK@Welcome to the server".encode(FORMAT), public_key))
 
@@ -78,10 +92,9 @@ def client_handling(conn, addr):
                 conn.send(rsa.encrypt("Invalid command".encode(FORMAT), public_key))
     except Exception as e:
         conn.send(rsa.encrypt(f"Error, please try again.\n{e}".encode(FORMAT), public_key))
-    finally:
-        # Close the connection when done
-        print(f"{addr} disconnected")
-        conn.close()
+    # Close the connection when done
+    print(f"{addr} disconnected")
+    conn.close()
 
 # Function to handle file uploads from client
 # Function to handle file uploads from client in chunks
