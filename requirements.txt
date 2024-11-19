@@ -11,6 +11,7 @@ cycler==0.12.1
 decorator==5.1.1
 Flask==3.0.3
 fonttools==4.44.0
+glib==1.0.0
 idna==3.6
 itsdangerous==2.2.0
 Jinja2==3.1.4
