@@ -1,1 +1,119 @@
+import os
+import socket
+import rsa
+SIZE = 1024
+FORMAT = "utf-8"
+SERVER_DATA_PATH = "server_data"
+
+# FUNCTION: DOWNLOAD
+def file_download(client_socket, args):
+    """
+    Downloads a file from the server in chunks, allowing for large file transfers.
+    Parameters:
+    - client_socket: socket object for the client connection
+    - args: command arguments containing the filename
+    """
+    if len(args) < 1:
+        print("Filename required.")
+        return
+
+    # Get the file name from the server
+    filename = args[0]
+    file_size = int(rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT))
+    filepath = os.path.abspath("downloads")
+
+    # Prepare to receive the file in chunks
+    with open(f"{filepath}/{filename}", "a") as file:
+        received_size = 0
+        while received_size < file_size:
+            # Determine chunk size (use SIZE or remaining bytes if less than SIZE)
+            chunk_size = min(SIZE, file_size - received_size)
+            chunk = client_socket.recv(chunk_size)
+
+            if not chunk:  # End of data
+                break
+
+            # Write the chunk to the file and update the received size
+            file.write(chunk)
+            received_size += len(chunk)
+
+    # Confirm download success to client
+    print("File downloaded successfully to downloads folder.")
+
+# FUNCTION: UPLOAD
+def file_upload(client_socket, args):
+    """
+    Upload a file to the server
+    Parameters:
+    - client_socket: socket object for the client connection
+    - args: command arguments containing the filename
+    """
+   
+
+    filename = args[0]
+    filepath = os.path.abspath(filename)
+
+    # Check if file exists before sending
+    if os.path.exists(filepath):
+        
+        with open(filepath, 'rb') as file:
+            client_socket.sendall(file.read())  # Send file data
+    else:
+       print("File not found")
+       
+# FUNCTION: DELETE
+def file_delete(client_socket, args):
+    
+# FUNCTION: DIR
+def directory_list(client_socket):
+    
+# FUNCTION: SUBFOLDER
+def subfolder_manager(client_socket, args):
+     
+  
+# MAIN FUNCTION
+def main():
+     IP = input("What is the IP Address of the server you wish to connect to? ")
+    PORT = input("What is the port of the server you wish to connect to? ")
+    ADDR = (str(IP), int(PORT))
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect(ADDR)
+    while True: # Multiple communSications
+        data = client.recv(SIZE).decode(FORMAT)
+        cmd = data.split("@")
+        msg = cmd[0]
+        if msg == "OK":
+            print(f"{msg}")
+        elif msg == "DISCONNECTED":
+            print(f"{msg}")
+            break
+        data = input("> ")
+        data = data.split(" ")
+        cmd = data[0]
+        print(cmd)
+        
+        elif cmd == "LOGOUT":
+            client.send(cmd.encode(FORMAT))
+            break
+        # Determine which command to execute
+            if command == "upload":
+                file_upload(client_socket, args)
+            elif command == "download":
+                file_download(client_socket, args)
+            elif command == "delete":
+                file_delete(client_socket, args)
+            elif command == "dir":
+                directory_list(client_socket)
+            elif command == "subfolder":
+                subfolder_manager(client_socket, args)
+            else:
+                client_socket.send("Invalid command".encode(FORMAT))
+   
+    print("Disconnectd from server.")
+    client.close()
+
+# main function is called
+if __name__ == "__main__":
+    main()
+
 
