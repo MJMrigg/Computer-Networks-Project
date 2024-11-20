@@ -63,13 +63,13 @@ def file_upload(client_socket, args):
        
 # FUNCTION: DELETE
 def file_delete(client_socket, args):
-    
+    client_socket.send(args.encode(FORMAT))
 # FUNCTION: DIR
 def directory_list(client_socket):
-    
+    client_socket.send(args.encode(FORMAT))
 # FUNCTION: SUBFOLDER
 def subfolder_manager(client_socket, args):
-     
+    client_socket.send(args.encode(FORMAT))
   
 # MAIN FUNCTION
 def main():
@@ -88,13 +88,11 @@ def main():
             print(f"{msg}")
             break
         data = input("> ")
-        data = data.split(" ")
+        data = data.split(" ").lower()
         cmd = data[0]
-        print(cmd)
         
-        elif cmd == "LOGOUT":
-            client.send(cmd.encode(FORMAT))
-            break
+        
+        
         # Determine which command to execute
             if command == "upload":
                 file_upload(client_socket, args)
@@ -106,14 +104,12 @@ def main():
                 directory_list(client_socket)
             elif command == "subfolder":
                 subfolder_manager(client_socket, args)
-            else:
-                client_socket.send("Invalid command".encode(FORMAT))
-   
+            elif cmd == "logout":
+                client.send(cmd.encode(FORMAT))
+                break
     print("Disconnectd from server.")
     client.close()
 
 # main function is called
 if __name__ == "__main__":
     main()
-
-
