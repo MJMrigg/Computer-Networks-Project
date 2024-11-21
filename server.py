@@ -50,27 +50,27 @@ def client_handling(conn, addr):
     - addr: address of the client (IP, port)
     """
     print(f"NEW CONNECTION: {addr} connected.")
-
-    # Send the client the public key it will use to encrypt messages sent from it to the server
-    conn.send(f"The public key for encryption is:@{public_key}".encode(FORMAT))
-    ok = conn.recv(SIZE).decode(FORMAT)
-    ok = rsa.encrypt(ok, private_key).decode(FORMAT).split("@")[0]
-    if ok != "ok":
-        return
+    # Send the client the public key so that the server can communicate with them
+    with open("public_key.pem", "r") as f:
+        conn.send(f"Hello! Here is my public key@{str(f.read(-1))}".encode(FORMAT))
+    # Receive the client's public key
+    client_key = rsa.decrypt(conn.recv(SIZE), private_key).decode(FORMAT)
+    client_key = client_key.split("@")[1]
+    client_key = rsa.PublicKey.load_pkcs1(client_key)
     # Prompt client to enter password needed to access the server
-    conn.send(rsa.encrypt("Please Enter Password".encode(FORMAT), public_key))
+    conn.send(rsa.encrypt("Please Enter Password".encode(FORMAT), client_key))
     password = conn.recv(SIZE) # password the client entered
     if not password:
         return
     password = rsa.decrypt(password, private_key).decode(FORMAT) # Decrypt it
     if password != PASSWORD: # If it was not the correct PASSWORD, deny the client access to the server
-        conn.send(rsa.encrypt("Access Denied. Have a good day!").encode(FORMAT), public_key)
+        conn.send(rsa.encrypt("Access Denied. Have a good day!").encode(FORMAT), client_key)
         print(f"{addr} was disconnected")
         conn.close()
         return
 
     # Send welcome message to client
-    conn.send(rsa.encrypt("OK@Welcome to the server".encode(FORMAT), public_key))
+    conn.send(rsa.encrypt("OK@Welcome to the server".encode(FORMAT), client_key))
 
     try:
         while True:
@@ -85,26 +85,28 @@ def client_handling(conn, addr):
 
             # Determine which command to execute
             if command.lower() == "upload":
-                file_upload(conn, args)
+                file_upload(conn, args, client_key)
             elif command.lower() == "download":
-                file_download(conn, args)
+                file_download(conn, args, client_key)
             elif command.lower() == "delete":
-                file_delete(conn, args)
+                file_delete(conn, args, client_key)
             elif command.lower() == "dir":
-                directory_list(conn)
+                directory_list(conn, client_key)
             elif command.lower() == "subfolder":
-                subfolder_manager(conn, args)
+                subfolder_manager(conn, args, client_key)
+            elif command.lower() == "logout":
+                break
             else:
-                conn.send(rsa.encrypt("Invalid command".encode(FORMAT), public_key))
+                conn.send(rsa.encrypt("Invalid command".encode(FORMAT), client_key))
     except Exception as e:
-        conn.send(rsa.encrypt(f"Error, please try again.\n{e}".encode(FORMAT), public_key))
+        conn.send(rsa.encrypt(f"Error, please try again.\n{e}".encode(FORMAT), client_key))
     # Close the connection when done
     print(f"{addr} disconnected")
     conn.close()
 
 # Function to handle file uploads from client
 # Function to handle file uploads from client in chunks
-def file_upload(client_socket, args):
+def file_upload(client_socket, args, key):
     """
     Uploads a file from the client in chunks, allowing for large file transfers.
     Parameters:
@@ -112,7 +114,7 @@ def file_upload(client_socket, args):
     - args: command arguments containing the filename
     """
     if len(args) < 1:
-        client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), public_key))
+        client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), key))
         return
 
     # Retrieve the filename and expected file size from the client
@@ -126,7 +128,7 @@ def file_upload(client_socket, args):
         while received_size < file_size:
             # Determine chunk size (use SIZE or remaining bytes if less than SIZE)
             chunk_size = min(SIZE, file_size - received_size)
-            chunk = client_socket.recv(chunk_size)
+            chunk = rsa.decrypt(client_socket.recv(chunk_size), private_key).decode(FORMAT)
 
             if not chunk:  # End of data
                 break
@@ -136,11 +138,11 @@ def file_upload(client_socket, args):
             received_size += len(chunk)
 
     # Confirm upload success to client
-    client_socket.send(rsa.encrypt("File uploaded successfully.".encode(FORMAT), public_key))
+    client_socket.send(rsa.encrypt("File uploaded successfully.".encode(FORMAT), key))
 
 
 # Function to handle file downloads for client
-def file_download(client_socket, args):
+def file_download(client_socket, args, key):
     """
     Send a file to the client for download.
     Parameters:
@@ -148,7 +150,7 @@ def file_download(client_socket, args):
     - args: command arguments containing the filename
     """
     if len(args) < 1:
-        client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), public_key))
+        client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), key))
         return
 
     filename = args[0]
@@ -156,15 +158,15 @@ def file_download(client_socket, args):
 
     # Check if file exists before sending
     if os.path.exists(filepath):
-        client_socket.send(rsa.encrypt(f"{os.path.getsize(filepath)}".encode(FORMAT), public_key))  # Send file size
+        client_socket.send(rsa.encrypt(f"{os.path.getsize(filepath)}".encode(FORMAT), key))  # Send file size
         with open(filepath, 'rb') as file:
-            client_socket.sendall(rsa.encrypt(file.read(), public_key))  # Send file data
+            client_socket.sendall(rsa.encrypt(f"{file.read()}".encode(FORMAT), key))  # Send file data
     else:
-        client_socket.send(rsa.encrypt("File not found".encode(FORMAT), public_key))
+        client_socket.send(rsa.encrypt("File not found".encode(FORMAT), key))
 
 
 # Function to handle file deletion requests from client
-def file_delete(client_socket, args):
+def file_delete(client_socket, args, key):
     """
     Delete a specified file on the server.
     Parameters:
@@ -172,7 +174,7 @@ def file_delete(client_socket, args):
     - args: command arguments containing the filename
     """
     if len(args) < 1:
-        client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), public_key))
+        client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), key))
         return
 
     filename = args[0]
@@ -181,13 +183,13 @@ def file_delete(client_socket, args):
     # Remove file if it exists
     if os.path.exists(filepath):
         os.remove(filepath)
-        client_socket.send(rsa.encrypt("File successfully deleted".encode(FORMAT), public_key))
+        client_socket.send(rsa.encrypt("File successfully deleted".encode(FORMAT), key))
     else:
-        client_socket.send(rsa.encrypt("File not found".encode(FORMAT), public_key))
+        client_socket.send(rsa.encrypt("File not found".encode(FORMAT), key))
 
 
 # Function to list directory contents to client
-def directory_list(client_socket):
+def directory_list(client_socket, key):
     """
     List files in the server's base directory and send to client.
     Parameters:
@@ -195,11 +197,11 @@ def directory_list(client_socket):
     """
     files = os.listdir(BASE_DIR)
     response = "\n".join(files) if files else "No files found"
-    client_socket.send(rsa.encrypt(response.encode(FORMAT), public_key))
+    client_socket.send(rsa.encrypt(response.encode(FORMAT), key))
 
 
 # Function to manage subfolders (create or delete)
-def subfolder_manager(client_socket, args):
+def subfolder_manager(client_socket, args, key):
     """
     Create or delete a subfolder as requested by the client.
     Parameters:
@@ -207,7 +209,7 @@ def subfolder_manager(client_socket, args):
     - args: command arguments containing action and path
     """
     if len(args) < 2:
-        client_socket.send(rsa.encrypt("Action and path required.".encode(FORMAT), public_key))
+        client_socket.send(rsa.encrypt("Action and path required.".encode(FORMAT), key))
         return
 
     action, path = args
@@ -216,15 +218,15 @@ def subfolder_manager(client_socket, args):
     # Create or delete subfolder based on action
     if action == "create":
         os.makedirs(full_path, exist_ok=True)
-        client_socket.send(rsa.encrypt("Subfolder created".encode(FORMAT), public_key))
+        client_socket.send(rsa.encrypt("Subfolder created".encode(FORMAT), key))
     elif action == "delete":
         if os.path.exists(full_path):
             os.rmdir(full_path)
-            client_socket.send(rsa.encrypt("Subfolder deleted".encode(FORMAT), public_key))
+            client_socket.send(rsa.encrypt("Subfolder deleted".encode(FORMAT), key))
         else:
-            client_socket.send(rsa.encrypt("Subfolder not found".encode(FORMAT), public_key))
+            client_socket.send(rsa.encrypt("Subfolder not found".encode(FORMAT), key))
     else:
-        client_socket.send(rsa.encrypt("Invalid command".encode(FORMAT), public_key))
+        client_socket.send(rsa.encrypt("Invalid command".encode(FORMAT), key))
 
 
 # Function to start the server
@@ -250,5 +252,6 @@ def main():
         active_threads = threading.active_count() - 1  # Exclude main thread
         print(f"[ACTIVE CONNECTIONS] {active_threads}")
 
-if __name__ == "main":
+# main function is called
+if __name__ == "__main__":
     main()
