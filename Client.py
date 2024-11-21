@@ -71,7 +71,7 @@ def file_download(client_socket, args):
         while received_size < file_size:
             # Determine chunk size (use SIZE or remaining bytes if less than SIZE)
             chunk_size = min(SIZE, file_size - received_size)
-            chunk = rsa.decrypt(client_socket.recv(chunk_size), private_key).decode(FORMAT)
+            chunk = client_socket.recv(chunk_size).decode(FORMAT)
 
             if not chunk:  # End of data
                 break
@@ -97,9 +97,9 @@ def file_upload(client_socket, args, key):
 
     # Check if file exists before sending
     if os.path.exists(filepath):
-        
+        client_socket.send(rsa.encrypt(f"{os.path.getsize(filepath)}".encode(FORMAT), key))  # Send file size
         with open(filepath, 'rb') as file:
-            client_socket.sendall(rsa.encrypt(f"{file.read()}".encode(FORMAT), key))  # Send file data
+            client_socket.sendall(f"{file.read()}".encode(FORMAT))  # Send file data
     else:
        print("File not found")
   
@@ -110,13 +110,28 @@ def main():
     ADDR = (str(IP), int(PORT))
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(ADDR)
+
     # Receive server's public key
-    server_key = client.recv(SIZE).decode(FORMAT)
-    server_key = server_key.split("@")[1]
-    server_key = rsa.PublicKey.load_pkcs1(server_key)
+    key_size = client.recv(SIZE).decode(FORMAT)
+    key_size = key_size.split("@")[1]
+    server_key = None
+    with open(f"server_key.pem", "a") as file:
+        received_size = 0
+        while received_size < key_size:
+            # Determine chunk size (use SIZE or remaining bytes if less than SIZE)
+            chunk_size = min(SIZE, key_size - received_size)
+            chunk = key_size.recv(chunk_size).decode(FORMAT)
+            if not chunk:  # End of data
+                break
+            # Write the chunk to the file and update the received size
+            file.write(chunk)
+            received_size += len(chunk)
+        server_key = rsa.PublicKey.load_pkcs1(file.read())
     # Send server the the client's public key
     with open("public_key.pem", "r") as f:
-        client.send(rsa.encrypt(f"Ok I have received your public key. Here is my public key@{str(f.read(-1))}.".encode(FORMAT), server_key))
+        client.send(rsa.encrypt(f"Thank you! I am sending my public key. Here is the size of my public key@{os.path.getsize("public_key.pem")}".encode(FORMAT), server_key))
+        client.sendall(f"{file.read()}".encode(FORMAT))
+    
     while True: # Multiple communications
         data = client.recv(SIZE).decode(FORMAT)
         print(data)
@@ -140,6 +155,7 @@ def main():
             break
     print("Disconnectd from server.")
     client.close()
+    os.remove("server_key.pem")
 
 # main function is called
 if __name__ == "__main__":

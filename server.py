@@ -42,7 +42,7 @@ public_key, private_key = load_or_generate_keys()
 
 
 # Function to handle each client connection
-def client_handling(conn, addr):
+def client_handling(conn, addr, connection_number):
     """
     Handles commands from a single client connection.
     Parameters:
@@ -50,13 +50,28 @@ def client_handling(conn, addr):
     - addr: address of the client (IP, port)
     """
     print(f"NEW CONNECTION: {addr} connected.")
+    
     # Send the client the public key so that the server can communicate with them
-    with open("public_key.pem", "r") as f:
-        conn.send(f"Hello! Here is my public key@{str(f.read(-1))}".encode(FORMAT))
+    with open("public_key.pem", "r") as file:
+        conn.send(f"Hello! I am sending my public key. Here is the size of my public key@{os.path.getsize("public_key.pem")}".encode(FORMAT))
+        conn.sendall(f"{file.read()}".encode(FORMAT))
     # Receive the client's public key
-    client_key = rsa.decrypt(conn.recv(SIZE), private_key).decode(FORMAT)
-    client_key = client_key.split("@")[1]
-    client_key = rsa.PublicKey.load_pkcs1(client_key)
+    key_size = rsa.decrypt(conn.recv(SIZE), private_key).decode(FORMAT)
+    key_size = key_size.split("@")[1]
+    client_key = None
+    with open(f"client_key{connection_number}.pem", "a") as file:
+        received_size = 0
+        while received_size < key_size:
+            # Determine chunk size (use SIZE or remaining bytes if less than SIZE)
+            chunk_size = min(SIZE, key_size - received_size)
+            chunk = key_size.recv(chunk_size).decode(FORMAT)
+            if not chunk:  # End of data
+                break
+            # Write the chunk to the file and update the received size
+            file.write(chunk)
+            received_size += len(chunk)
+        client_key = rsa.PublicKey.load_pkcs1(file.read())
+
     # Prompt client to enter password needed to access the server
     conn.send(rsa.encrypt("Please Enter Password".encode(FORMAT), client_key))
     password = conn.recv(SIZE) # password the client entered
@@ -103,6 +118,7 @@ def client_handling(conn, addr):
     # Close the connection when done
     print(f"{addr} disconnected")
     conn.close()
+    os.remove(f"client_key{connection_number}.pem")
 
 # Function to handle file uploads from client
 # Function to handle file uploads from client in chunks
@@ -128,7 +144,7 @@ def file_upload(client_socket, args, key):
         while received_size < file_size:
             # Determine chunk size (use SIZE or remaining bytes if less than SIZE)
             chunk_size = min(SIZE, file_size - received_size)
-            chunk = rsa.decrypt(client_socket.recv(chunk_size), private_key).decode(FORMAT)
+            chunk = client_socket.recv(chunk_size).decode(FORMAT)
 
             if not chunk:  # End of data
                 break
@@ -160,7 +176,7 @@ def file_download(client_socket, args, key):
     if os.path.exists(filepath):
         client_socket.send(rsa.encrypt(f"{os.path.getsize(filepath)}".encode(FORMAT), key))  # Send file size
         with open(filepath, 'rb') as file:
-            client_socket.sendall(rsa.encrypt(f"{file.read()}".encode(FORMAT), key))  # Send file data
+            client_socket.sendall(f"{file.read()}".encode(FORMAT))  # Send file data
     else:
         client_socket.send(rsa.encrypt("File not found".encode(FORMAT), key))
 
@@ -238,14 +254,16 @@ def main():
     server_socket.bind(ADDR)  # Bind server to address
     server_socket.listen()  # Listen for incoming connections
     print(f"Server listening on {ADDR}")
+    connections = 0
 
     # Accept new connections indefinitely
     while True:
         client_socket, client_address = server_socket.accept()
         print(f"Connection from {client_address}")
+        connections += 1
 
         # Start a new thread to handle this client's requests
-        client_thread = threading.Thread(target=client_handling, args=(client_socket, client_address))
+        client_thread = threading.Thread(target=client_handling, args=(client_socket, client_address, connections))
         client_thread.start()
 
         # Display active connection count
