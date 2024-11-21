@@ -128,8 +128,9 @@ def main():
             received_size += len(chunk)
         server_key = rsa.PublicKey.load_pkcs1(file.read())
     # Send server the the client's public key
-    with open("public_key.pem", "r") as f:
-        client.send(rsa.encrypt(f"Thank you! I am sending my public key. Here is the size of my public key@{os.path.getsize("public_key.pem")}".encode(FORMAT), server_key))
+    with open("public_key.pem", "r") as file:
+        key_size = os.path.getsize("public_key.pem")
+        client.send(rsa.encrypt(f"Thank you! I am sending my public key. Here is the size of my public key@{key_size}".encode(FORMAT), server_key))
         client.sendall(f"{file.read()}".encode(FORMAT))
     
     while True: # Multiple communications

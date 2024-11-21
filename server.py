@@ -53,7 +53,8 @@ def client_handling(conn, addr, connection_number):
     
     # Send the client the public key so that the server can communicate with them
     with open("public_key.pem", "r") as file:
-        conn.send(f"Hello! I am sending my public key. Here is the size of my public key@{os.path.getsize("public_key.pem")}".encode(FORMAT))
+        key_size = os.path.getsize("public_key.pem")
+        conn.send(f"Hello! I am sending my public key. Here is the size of my public key@{key_size}".encode(FORMAT))
         conn.sendall(f"{file.read()}".encode(FORMAT))
     # Receive the client's public key
     key_size = rsa.decrypt(conn.recv(SIZE), private_key).decode(FORMAT)
