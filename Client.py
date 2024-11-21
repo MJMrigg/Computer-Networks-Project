@@ -89,7 +89,7 @@ def main():
     # Receive public key from server
     public_key = client.recv(SIZE).decode(FORMAT)
     public_key = int(public_key.split("@")[1])
-    client.send(rsa("Ok@I have received your public key").encode(FORMAT), public_key)
+    client.send(rsa.encrypt("Ok@I have received your public key").encode(FORMAT), public_key)
     while True: # Multiple communSications
         data = client.recv(SIZE).decode(FORMAT)
         cmd = data.split("@")
