@@ -113,7 +113,7 @@ def main():
 
     # Receive server's public key
     key_size = client.recv(SIZE).decode(FORMAT)
-    key_size = key_size.split("@")[1]
+    key_size = int(key_size.split("@")[1])
     server_key = None
     with open(f"server_key.pem", "a") as file:
         received_size = 0

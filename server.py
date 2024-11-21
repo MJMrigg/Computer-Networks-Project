@@ -52,13 +52,14 @@ def client_handling(conn, addr, connection_number):
     print(f"NEW CONNECTION: {addr} connected.")
     
     # Send the client the public key so that the server can communicate with them
+    key_size = 0
     with open("public_key.pem", "r") as file:
         key_size = os.path.getsize("public_key.pem")
         conn.send(f"Hello! I am sending my public key. Here is the size of my public key@{key_size}".encode(FORMAT))
         conn.sendall(f"{file.read()}".encode(FORMAT))
     # Receive the client's public key
     key_size = rsa.decrypt(conn.recv(SIZE), private_key).decode(FORMAT)
-    key_size = key_size.split("@")[1]
+    key_size = int(key_size.split("@")[1])
     client_key = None
     with open(f"client_key{connection_number}.pem", "a") as file:
         received_size = 0
