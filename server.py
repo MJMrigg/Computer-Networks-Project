@@ -51,12 +51,18 @@ def client_handling(conn, addr):
     """
     print(f"NEW CONNECTION: {addr} connected.")
 
+    # Send the client the public key it will use to encrypt messages sent from it to the server
+    conn.send(f"The public key for encryption is:@{public_key}".encode(FORMAT))
+    ok = conn.recv(SIZE).decode(FORMAT)
+    ok = rsa.encrypt(ok, private_key).decode(FORMAT).split("@")[0]
+    if ok != "ok":
+        return
     # Prompt client to enter password needed to access the server
     conn.send(rsa.encrypt("Please Enter Password".encode(FORMAT), public_key))
     password = conn.recv(SIZE) # password the client entered
     if not password:
         return
-    passowrd = rsa.decrypt(password, private_key).decode(FORMAT) # Decrypt it
+    password = rsa.decrypt(password, private_key).decode(FORMAT) # Decrypt it
     if password != PASSWORD: # If it was not the correct PASSWORD, deny the client access to the server
         conn.send(rsa.encrypt("Access Denied. Have a good day!").encode(FORMAT), public_key)
         print(f"{addr} was disconnected")
