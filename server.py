@@ -42,7 +42,7 @@ public_key, private_key = load_or_generate_keys()
 
 
 # Function to handle each client connection
-def client_handling(conn, addr, connection_number):
+def client_handling(conn, addr):
     """
     Handles commands from a single client connection.
     Parameters:
@@ -232,16 +232,14 @@ def main():
     server_socket.bind(ADDR)  # Bind server to address
     server_socket.listen()  # Listen for incoming connections
     print(f"Server listening on {ADDR}")
-    connections = 0
 
     # Accept new connections indefinitely
     while True:
         client_socket, client_address = server_socket.accept()
         print(f"Connection from {client_address}")
-        connections += 1
 
         # Start a new thread to handle this client's requests
-        client_thread = threading.Thread(target=client_handling, args=(client_socket, client_address, connections))
+        client_thread = threading.Thread(target=client_handling, args=(client_socket, client_address))
         client_thread.start()
 
         # Display active connection count
