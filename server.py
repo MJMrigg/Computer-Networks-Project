@@ -3,6 +3,8 @@ import socket
 import threading
 import rsa
 import datetime
+import tqdm
+from Cryptodome.Cipher import AES
 
 # Server configuration
 IP = socket.gethostbyname(socket.gethostname()) # Server hostname
@@ -27,20 +29,29 @@ def load_or_generate_keys():
             public_key = rsa.PublicKey.load_pkcs1(f.read())
         with open("private_key.pem", "rb") as f:
             private_key = rsa.PrivateKey.load_pkcs1(f.read())
+        with open("cipher_key.pem", "rb") as f:
+            ciper_key = f.read()
+        with open("nonce.pem", "rb") as f:
+            nonce = f.read()
     else:
         # Generate new keys
         public_key, private_key = rsa.newkeys(2048)
+        cipher_key = os.random(16)
+        nonce = os.random(16)
         # Save keys to files
         with open("public_key.pem", "wb") as f:
             f.write(public_key.save_pkcs1("PEM"))
         with open("private_key.pem", "wb") as f:
             f.write(private_key.save_pkcs1("PEM"))
-    return public_key, private_key
+        with open("cipher_key.pem", "wb") as f:
+            f.write(cipher_key)
+        with open("nonce.pem", "wb") as f:
+            f.write(nonce)
+    return public_key, private_key, cipher_key, nonce
 
-
-# Load or generate RSA keys
-public_key, private_key = load_or_generate_keys()
-
+# Load or generate RSA keys and create AES cipher
+public_key, private_key, cipher_key, nonce = load_or_generate_keys()
+cipher = AES.new(cipher_key, AES.MODE_EAX, nonce)
 
 # Function to handle each client connection
 def client_handling(conn, addr):
@@ -125,7 +136,7 @@ def file_upload(client_socket, args, key):
         while received_size < file_size:
             # Determine chunk size (use SIZE or remaining bytes if less than SIZE)
             chunk_size = min(SIZE, file_size - received_size)
-            chunk = client_socket.recv(chunk_size).decode(FORMAT)
+            chunk = client_socket.recv(chunk_size)
 
             if not chunk:  # End of data
                 break
@@ -158,11 +169,8 @@ def file_download(client_socket, args, key):
     if os.path.exists(filepath):
         client_socket.send(rsa.encrypt(f"{filesize}".encode(FORMAT), key))  # Send file size
         with open(filepath, 'rb') as file:
-            #data = file.read()
-            #data_encrypted = rsa.encrypt(data, key)
-            #print(data_encrypted)
-            #client_socket.sendall(data_encrypted)
-            client_socket.sendall(file.read())
+            # Use AES to encrypt the file data
+            client_socket.send(cipher.encrypt(file.read()))
     else:
         client_socket.send(rsa.encrypt("File not found".encode(FORMAT), key))
 
