@@ -83,9 +83,6 @@ def client_handling(conn, addr):
                 file_upload(conn, args, public_key)
             elif command.lower() == "download":
                 file_download(conn, args, public_key)
-                conn.send(rsa.encrypt('~~~~'.encode(FORMAT), public_key)) 
-                # This will send a place holder message so that the connection can remain open
-                # Use the the '~' because it is a very rarely used character and not likely to be used again in this code
             elif command.lower() == "delete":
                 file_delete(conn, args, public_key)
             elif command.lower() == "dir":
