@@ -2,6 +2,7 @@ import os
 import socket
 import threading
 import rsa
+import datetime
 
 # Server configuration
 IP = socket.gethostbyname(socket.gethostname()) # Server hostname
@@ -52,19 +53,19 @@ def client_handling(conn, addr):
     print(f"NEW CONNECTION: {addr} connected.")
     
     # Prompt client to enter password needed to access the server
-    conn.send(rsa.encrypt("Please Enter Password".encode(FORMAT), public_key))
+    conn.send(rsa.encrypt("Please Enter Passcode".encode(FORMAT), public_key))
     password = conn.recv(SIZE) # password the client entered
     if not password:
         return
     password = rsa.decrypt(password, private_key).decode(FORMAT) # Decrypt it
     if password != PASSWORD: # If it was not the correct PASSWORD, deny the client access to the server
-        conn.send(rsa.encrypt("Access Denied. Have a good day!").encode(FORMAT), public_key)
+        conn.send(rsa.encrypt("Access Denied. Passcode was incorrect.".encode(FORMAT), public_key))
         conn.close()
         print(f"{addr} was disconnected")
         return
 
     # Send welcome message to client
-    conn.send(rsa.encrypt("OK@Welcome to the server".encode(FORMAT), public_key))
+    conn.send(rsa.encrypt("Welcome to the server!@".encode(FORMAT), public_key))
 
     try:
         while True:
@@ -82,6 +83,9 @@ def client_handling(conn, addr):
                 file_upload(conn, args, public_key)
             elif command.lower() == "download":
                 file_download(conn, args, public_key)
+                conn.send(rsa.encrypt('~~~~'.encode(FORMAT), public_key)) 
+                # This will send a place holder message so that the connection can remain open
+                # Use the the '~' because it is a very rarely used character and not likely to be used again in this code
             elif command.lower() == "delete":
                 file_delete(conn, args, public_key)
             elif command.lower() == "dir":
@@ -236,7 +240,7 @@ def main():
     # Accept new connections indefinitely
     while True:
         client_socket, client_address = server_socket.accept()
-        print(f"Connection from {client_address}")
+        print(f"Connection from {client_address} at {datetime.datetime.now()}")
 
         # Start a new thread to handle this client's requests
         client_thread = threading.Thread(target=client_handling, args=(client_socket, client_address))
