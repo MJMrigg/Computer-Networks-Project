@@ -51,43 +51,20 @@ def client_handling(conn, addr, connection_number):
     """
     print(f"NEW CONNECTION: {addr} connected.")
     
-    # Send the client the public key so that the server can communicate with them
-    key_size = 0
-    with open("public_key.pem", "r") as file:
-        key_size = os.path.getsize("public_key.pem")
-        conn.send(f"Hello! I am sending my public key. Here is the size of my public key@{key_size}".encode(FORMAT))
-        conn.sendall(f"{file.read()}".encode(FORMAT))
-    # Receive the client's public key
-    key_size = rsa.decrypt(conn.recv(SIZE), private_key).decode(FORMAT)
-    key_size = int(key_size.split("@")[1])
-    client_key = None
-    with open(f"client_key{connection_number}.pem", "a") as file:
-        received_size = 0
-        while received_size < key_size:
-            # Determine chunk size (use SIZE or remaining bytes if less than SIZE)
-            chunk_size = min(SIZE, key_size - received_size)
-            chunk = key_size.recv(chunk_size).decode(FORMAT)
-            if not chunk:  # End of data
-                break
-            # Write the chunk to the file and update the received size
-            file.write(chunk)
-            received_size += len(chunk)
-        client_key = rsa.PublicKey.load_pkcs1(file.read())
-
     # Prompt client to enter password needed to access the server
-    conn.send(rsa.encrypt("Please Enter Password".encode(FORMAT), client_key))
+    conn.send(rsa.encrypt("Please Enter Password".encode(FORMAT), public_key))
     password = conn.recv(SIZE) # password the client entered
     if not password:
         return
     password = rsa.decrypt(password, private_key).decode(FORMAT) # Decrypt it
     if password != PASSWORD: # If it was not the correct PASSWORD, deny the client access to the server
-        conn.send(rsa.encrypt("Access Denied. Have a good day!").encode(FORMAT), client_key)
+        conn.send(rsa.encrypt("Access Denied. Have a good day!").encode(FORMAT), public_key)
         print(f"{addr} was disconnected")
         conn.close()
         return
 
     # Send welcome message to client
-    conn.send(rsa.encrypt("OK@Welcome to the server".encode(FORMAT), client_key))
+    conn.send(rsa.encrypt("OK@Welcome to the server".encode(FORMAT), public_key))
 
     try:
         while True:
@@ -102,25 +79,24 @@ def client_handling(conn, addr, connection_number):
 
             # Determine which command to execute
             if command.lower() == "upload":
-                file_upload(conn, args, client_key)
+                file_upload(conn, args, public_key)
             elif command.lower() == "download":
-                file_download(conn, args, client_key)
+                file_download(conn, args, public_key)
             elif command.lower() == "delete":
-                file_delete(conn, args, client_key)
+                file_delete(conn, args, public_key)
             elif command.lower() == "dir":
-                directory_list(conn, client_key)
+                directory_list(conn, public_key)
             elif command.lower() == "subfolder":
-                subfolder_manager(conn, args, client_key)
+                subfolder_manager(conn, args, public_key)
             elif command.lower() == "logout":
                 break
             else:
-                conn.send(rsa.encrypt("Invalid command".encode(FORMAT), client_key))
+                conn.send(rsa.encrypt("Invalid command".encode(FORMAT), public_key))
     except Exception as e:
-        conn.send(rsa.encrypt(f"Error, please try again.\n{e}".encode(FORMAT), client_key))
+        conn.send(rsa.encrypt(f"Error, please try again.\n{e}".encode(FORMAT), public_key))
     # Close the connection when done
     print(f"{addr} disconnected")
     conn.close()
-    os.remove(f"client_key{connection_number}.pem")
 
 # Function to handle file uploads from client
 # Function to handle file uploads from client in chunks

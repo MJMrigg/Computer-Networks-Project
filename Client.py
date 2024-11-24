@@ -110,28 +110,6 @@ def main():
     ADDR = (str(IP), int(PORT))
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(ADDR)
-
-    # Receive server's public key
-    key_size = client.recv(SIZE).decode(FORMAT)
-    key_size = int(key_size.split("@")[1])
-    server_key = None
-    with open(f"server_key.pem", "a") as file:
-        received_size = 0
-        while received_size < key_size:
-            # Determine chunk size (use SIZE or remaining bytes if less than SIZE)
-            chunk_size = min(SIZE, key_size - received_size)
-            chunk = key_size.recv(chunk_size).decode(FORMAT)
-            if not chunk:  # End of data
-                break
-            # Write the chunk to the file and update the received size
-            file.write(chunk)
-            received_size += len(chunk)
-        server_key = rsa.PublicKey.load_pkcs1(file.read())
-    # Send server the the client's public key
-    with open("public_key.pem", "r") as file:
-        key_size = os.path.getsize("public_key.pem")
-        client.send(rsa.encrypt(f"Thank you! I am sending my public key. Here is the size of my public key@{key_size}".encode(FORMAT), server_key))
-        client.sendall(f"{file.read()}".encode(FORMAT))
     
     while True: # Multiple communications
         data = client.recv(SIZE).decode(FORMAT)
@@ -144,19 +122,18 @@ def main():
         if cmd == "upload":
             file_upload(client, data)
         elif cmd == "download":
-            file_download(client, data, server_key)
+            file_download(client, data, public_key)
         elif cmd == "delete":
-            client.send(rsa.encrypt(data.encode(FORMAT), server_key))
+            client.send(rsa.encrypt(data.encode(FORMAT), public_key))
         elif cmd == "dir":
-            client.send(rsa.encrypt(data.encode(FORMAT), server_key))
+            client.send(rsa.encrypt(data.encode(FORMAT), public_key))
         elif cmd == "subfolder":
-            client.send(rsa.encrypt(data.encode(FORMAT), server_key))
+            client.send(rsa.encrypt(data.encode(FORMAT), public_key))
         elif cmd == "logout":
-            client.send(rsa.encrypt(data.encode(FORMAT), server_key))
+            client.send(rsa.encrypt(data.encode(FORMAT), public_key))
             break
     print("Disconnectd from server.")
     client.close()
-    os.remove("server_key.pem")
 
 # main function is called
 if __name__ == "__main__":
