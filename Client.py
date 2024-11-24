@@ -112,7 +112,7 @@ def main():
     client.connect(ADDR)
     
     while True: # Multiple communications
-        data = client.recv(SIZE).decode(FORMAT)
+        data = rsa.decrypt(client.recv(SIZE), private_key).decode(FORMAT)
         print(data)
         data = input("> ")
         data = data.split(" ").lower()
