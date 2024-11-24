@@ -54,19 +54,24 @@ def file_download(client_socket, args):
     if(response == 'File not found'):
         print("File not found")
         return
+    if(response == 'Filename required'):
+        print("Filename required")
+        return
     file_size = int(response)
-    filename = args[1]
+    filename = args[0]
+
     # Set the path to the client's downloads folder 
     downloads = get_download_path()
     filepath = os.path.join(downloads, filename)
-    print(filepath)
     number = 0
     # Check to see if it already exists in the downloads folder. If it does, at a number at the end
     while(1):
         if(os.path.exists(filepath)):
             number += 1
-            filename = filename.split("(")[0]
-            filename = f"{filename}({number})"
+            filename = filename.split(".")[0]
+            filename = filename.split(" (")
+            filename = filename[len(filename)-2]
+            filename = f"{filename} ({number})"
             filepath = f"{downloads}\{filename}"
         else:
             break
@@ -74,17 +79,21 @@ def file_download(client_socket, args):
     # Prepare to receive the file in chunks
     with open(filepath, 'wb') as file:
         received_size = 0
+        received_data = b""
         while received_size < file_size:
             # Determine chunk size (use SIZE or remaining bytes if less than SIZE)
             chunk_size = min(SIZE, file_size - received_size)
-            chunk = client_socket.recv(chunk_size).decode(FORMAT)
+            chunk = client_socket.recv(chunk_size)
 
             if not chunk:  # End of data
                 break
-
-            # Write the chunk to the file and update the received size
-            file.write(chunk)
-            received_size += len(chunk)
+            
+            received_size += len(chunk) # Update received size
+            received_data = received_data + chunk
+            print(received_data)
+        
+        # Write the data to the file and update
+        file.write(received_data)
 
     # Confirm download success to client
     print("File downloaded successfully to downloads folder.")
@@ -97,8 +106,9 @@ def file_upload(client_socket, args, key):
     - client_socket: socket object for the client connection
     - args: command arguments containing the filename
     """
-
-    filename = args[1]
+    if(len(args) < 1):
+        return 1
+    filename = args[0]
     filepath = os.path.abspath(filename)
 
     # Check if file exists before sending
@@ -128,8 +138,7 @@ def main():
             if data[0] == "Access Denied. Passcode was incorrect.": # If the client didn't input the correct passcode
                 break
         data = input("> ")
-        datas = data.split(" ")
-        cmd = datas[0]
+        cmd, *args = data.split()
 
         # Send the server the command
         client.send(rsa.encrypt(data.encode(FORMAT), public_key))
@@ -137,9 +146,9 @@ def main():
         # Certain answers to certain commands require more logic
         if cmd.lower() == "upload":
             # What happens in this function will determine if the client ends up waiting for a response or not
-            waiting = file_upload(client, datas, public_key)
+            waiting = file_upload(client, args, public_key)
         elif cmd.lower() == "download":
-            file_download(client, datas)
+            file_download(client, args)
             waiting = 0
         elif cmd.lower() == "logout":
             break
