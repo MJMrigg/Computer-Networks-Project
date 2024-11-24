@@ -59,8 +59,8 @@ def client_handling(conn, addr):
     password = rsa.decrypt(password, private_key).decode(FORMAT) # Decrypt it
     if password != PASSWORD: # If it was not the correct PASSWORD, deny the client access to the server
         conn.send(rsa.encrypt("Access Denied. Have a good day!").encode(FORMAT), public_key)
-        print(f"{addr} was disconnected")
         conn.close()
+        print(f"{addr} was disconnected")
         return
 
     # Send welcome message to client

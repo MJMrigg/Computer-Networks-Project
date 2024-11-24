@@ -115,23 +115,25 @@ def main():
         data = rsa.decrypt(client.recv(SIZE), private_key).decode(FORMAT)
         print(data)
         data = input("> ")
-        data = data.split(" ").lower()
+        data = data.split(" ")
         cmd = data[0]      
         
         # Determine which command to execute
-        if cmd == "upload":
+        if cmd.lower() == "upload":
             file_upload(client, data)
-        elif cmd == "download":
+        elif cmd.lower() == "download":
             file_download(client, data, public_key)
-        elif cmd == "delete":
+        elif cmd.lower() == "delete":
             client.send(rsa.encrypt(data.encode(FORMAT), public_key))
-        elif cmd == "dir":
+        elif cmd.lower() == "dir":
             client.send(rsa.encrypt(data.encode(FORMAT), public_key))
-        elif cmd == "subfolder":
+        elif cmd.lower() == "subfolder":
             client.send(rsa.encrypt(data.encode(FORMAT), public_key))
-        elif cmd == "logout":
+        elif cmd.lower() == "logout":
             client.send(rsa.encrypt(data.encode(FORMAT), public_key))
             break
+        else:
+            client.send(rsa.encrypt(data.encode(FORMAT), public_key))
     print("Disconnectd from server.")
     client.close()
 
