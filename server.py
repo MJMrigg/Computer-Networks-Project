@@ -67,8 +67,8 @@ def client_handling(conn, addr):
     # Send welcome message to client
     conn.send(rsa.encrypt("Welcome to the server!@".encode(FORMAT), public_key))
 
-    try:
-        while True:
+    while True:
+        try:
            # Receive encrypted data from client
             encrypted_request = conn.recv(SIZE)
             if not encrypted_request:
@@ -91,10 +91,12 @@ def client_handling(conn, addr):
                 subfolder_manager(conn, args, public_key)
             elif command.lower() == "logout":
                 break
+            elif command.lower() == "ping":
+                conn.send(rsa.encrypt("ping".encode(FORMAT), public_key))
             else:
                 conn.send(rsa.encrypt("Invalid command".encode(FORMAT), public_key))
-    except Exception as e:
-        conn.send(rsa.encrypt(f"Error, please try again.\n{e}".encode(FORMAT), public_key))
+        except Exception as e:
+            conn.send(rsa.encrypt(f"Error, please try again.\n{e}".encode(FORMAT), public_key))
     # Close the connection when done
     print(f"{addr} disconnected")
     conn.close()
@@ -145,17 +147,22 @@ def file_download(client_socket, args, key):
     - args: command arguments containing the filename
     """
     if len(args) < 1:
-        client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), key))
+        client_socket.send(rsa.encrypt("Filename required.", key))
         return
 
     filename = args[0]
     filepath = os.path.join(BASE_DIR, filename)
+    filesize = os.path.getsize(filepath)
 
     # Check if file exists before sending
     if os.path.exists(filepath):
-        client_socket.send(rsa.encrypt(f"{os.path.getsize(filepath)}".encode(FORMAT), key))  # Send file size
+        client_socket.send(rsa.encrypt(f"{filesize}".encode(FORMAT), key))  # Send file size
         with open(filepath, 'rb') as file:
-            client_socket.sendall(f"{file.read()}".encode(FORMAT))  # Send file data
+            #data = file.read()
+            #data_encrypted = rsa.encrypt(data, key)
+            #print(data_encrypted)
+            #client_socket.sendall(data_encrypted)
+            client_socket.sendall(file.read())
     else:
         client_socket.send(rsa.encrypt("File not found".encode(FORMAT), key))
 

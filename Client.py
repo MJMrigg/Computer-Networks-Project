@@ -132,6 +132,8 @@ def main():
         elif cmd.lower() == "logout":
             client.send(rsa.encrypt(data.encode(FORMAT), public_key))
             break
+        elif cmd.lower() == "ping":
+            client.send(rsa.encrypt(data.encode(FORMAT), public_key))
         else:
             client.send(rsa.encrypt(data.encode(FORMAT), public_key))
     print("Disconnectd from server.")
