@@ -50,14 +50,20 @@ def file_download(client_socket, args):
             return os.path.join(os.path.expanduser('~'), 'downloads')
 
     # Get the file name from the server
-    file_size = int(client_socket.recv(SIZE).decode(FORMAT))
-    filename = args[0]
+    response = rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT)
+    if(response == 'File not found'):
+        print("File not found")
+        return
+    file_size = int(response)
+    filename = args[1]
     # Set the path to the client's downloads folder 
     downloads = get_download_path()
-    filepath = f"{downloads}\{filename}"
+    filepath = os.path.join(downloads, filename)
+    print(filepath)
     number = 0
+    # Check to see if it already exists in the downloads folder. If it does, at a number at the end
     while(1):
-        if(os.filepath.exists(filepath)):
+        if(os.path.exists(filepath)):
             number += 1
             filename = filename.split("(")[0]
             filename = f"{filename}({number})"
@@ -66,7 +72,7 @@ def file_download(client_socket, args):
             break
     
     # Prepare to receive the file in chunks
-    with open(f"{filepath}/{filename}", "a") as file:
+    with open(filepath, 'wb') as file:
         received_size = 0
         while received_size < file_size:
             # Determine chunk size (use SIZE or remaining bytes if less than SIZE)
@@ -92,7 +98,7 @@ def file_upload(client_socket, args, key):
     - args: command arguments containing the filename
     """
 
-    filename = args[0]
+    filename = args[1]
     filepath = os.path.abspath(filename)
 
     # Check if file exists before sending
@@ -100,8 +106,10 @@ def file_upload(client_socket, args, key):
         client_socket.send(rsa.encrypt(f"{os.path.getsize(filepath)}".encode(FORMAT), key))  # Send file size
         with open(filepath, 'rb') as file:
             client_socket.sendall(f"{file.read()}".encode(FORMAT))  # Send file data
+        return 1
     else:
        print("File not found")
+       return 0
   
 # MAIN FUNCTION
 def main():
@@ -110,30 +118,31 @@ def main():
     ADDR = (str(IP), int(PORT))
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(ADDR)
+    waiting = 1 # Wait for a response
     
     while True: # Multiple communications
-        data = rsa.decrypt(client.recv(SIZE), private_key).decode(FORMAT)
-        print(data)
+        if(waiting == 1): # If the client is waiting for a response, receive and print that response
+            data = rsa.decrypt(client.recv(SIZE), private_key).decode(FORMAT)
+            data = data.split("@")
+            print(data[0])
+            if data[0] == "Access Denied. Passcode was incorrect.": # If the client didn't input the correct passcode
+                break
         data = input("> ")
-        data = data.split(" ")
-        cmd = data[0]      
-        
-        # Determine which command to execute
+        datas = data.split(" ")
+        cmd = datas[0]
+
+        # Send the server the command
+        client.send(rsa.encrypt(data.encode(FORMAT), public_key))
+        waiting = 1
+        # Certain answers to certain commands require more logic
         if cmd.lower() == "upload":
-            file_upload(client, data)
+            # What happens in this function will determine if the client ends up waiting for a response or not
+            waiting = file_upload(client, datas, public_key)
         elif cmd.lower() == "download":
-            file_download(client, data, public_key)
-        elif cmd.lower() == "delete":
-            client.send(rsa.encrypt(data.encode(FORMAT), public_key))
-        elif cmd.lower() == "dir":
-            client.send(rsa.encrypt(data.encode(FORMAT), public_key))
-        elif cmd.lower() == "subfolder":
-            client.send(rsa.encrypt(data.encode(FORMAT), public_key))
+            file_download(client, datas)
+            waiting = 0
         elif cmd.lower() == "logout":
-            client.send(rsa.encrypt(data.encode(FORMAT), public_key))
             break
-        else:
-            client.send(rsa.encrypt(data.encode(FORMAT), public_key))
     print("Disconnectd from server.")
     client.close()
 
