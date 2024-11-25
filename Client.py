@@ -1,11 +1,13 @@
 import os
 import socket
 import rsa
+from Cryptodome.Cipher import AES
 SIZE = 1024
 FORMAT = "utf-8"
 SERVER_DATA_PATH = "server_data"
 
-# RSA key loading/generation
+# RSA key loading
+keys = [1] # Assume the keys will be sucessfully loaded
 def load_or_generate_keys():
     # Check if keys already exist
     if os.path.exists("private_key.pem") and os.path.exists("public_key.pem"):
@@ -14,20 +16,20 @@ def load_or_generate_keys():
             public_key = rsa.PublicKey.load_pkcs1(f.read())
         with open("private_key.pem", "rb") as f:
             private_key = rsa.PrivateKey.load_pkcs1(f.read())
+        with open("cipher_key.pem", "rb") as f:
+            cipher_key = f.read()
+        with open("nonce.pem", "rb") as f:
+            nonce = f.read()
+        return public_key, private_key, cipher_key, nonce
     else:
-        # Generate new keys
-        public_key, private_key = rsa.newkeys(2048)
-        # Save keys to files
-        with open("public_key.pem", "wb") as f:
-            f.write(public_key.save_pkcs1("PEM"))
-        with open("private_key.pem", "wb") as f:
-            f.write(private_key.save_pkcs1("PEM"))
-    return public_key, private_key
+        print("Error: One or more Encryption Keys have been deleted from your computer")
+        keys[0] = 0
+        # Client does not generate their own RSA and AES keys for risk of them being different from the Server's
 
 
-# Load or generate RSA keys
-public_key, private_key = load_or_generate_keys()
-
+# Load RSA keys and AES Cipher
+public_key, private_key, cipher_key, nonce = load_or_generate_keys()
+cipher = AES.new(cipher_key, AES.MODE_EAX, nonce)
 
 # FUNCTION: DOWNLOAD
 def file_download(client_socket, args):
@@ -37,18 +39,6 @@ def file_download(client_socket, args):
     - client_socket: socket object for the client connection
     - args: command arguments containing the filename
     """
-    def get_download_path():
-        import winreg
-        """Returns the default downloads path for linux or windows"""
-        if os.name == 'nt':
-            sub_key = r'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders'
-            downloads_guid = '{374DE290-123F-4565-9164-39C4925E467B}'
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, sub_key) as key:
-                location = winreg.QueryValueEx(key, downloads_guid)[0]
-            return location
-        else:
-            return os.path.join(os.path.expanduser('~'), 'downloads')
-
     # Get the file name from the server
     response = rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT)
     if(response == 'File not found'):
@@ -60,11 +50,9 @@ def file_download(client_socket, args):
     file_size = int(response)
     filename = args[0]
 
-    # Set the path to the client's downloads folder 
-    downloads = get_download_path()
-    filepath = os.path.join(downloads, filename)
+    filepath = os.path.join(SERVER_DATA_PATH, filename)
     number = 0
-    # Check to see if it already exists in the downloads folder. If it does, at a number at the end
+    # Check to see if the file already exists. If it does, at a number at the end
     while(1):
         if(os.path.exists(filepath)):
             number += 1
@@ -72,10 +60,10 @@ def file_download(client_socket, args):
             filename = filename.split(" (")
             filename = filename[len(filename)-2]
             filename = f"{filename} ({number})"
-            filepath = f"{downloads}\{filename}"
+            filepath = f"{SERVER_DATA_PATH}\{filename}"
         else:
             break
-    
+        
     # Prepare to receive the file in chunks
     with open(filepath, 'wb') as file:
         received_size = 0
@@ -89,14 +77,13 @@ def file_download(client_socket, args):
                 break
             
             received_size += len(chunk) # Update received size
-            received_data = received_data + chunk
-            print(received_data)
+            received_data = received_data + chunk # Add the data to he received data
         
-        # Write the data to the file and update
-        file.write(received_data)
+        # Decrypt the data and write it to the file
+        file.write(cipher.decrypt(received_data))
 
     # Confirm download success to client
-    print("File downloaded successfully to downloads folder.")
+    print("File Sucessfully Downloaded")
 
 # FUNCTION: UPLOAD
 def file_upload(client_socket, args, key):
@@ -155,6 +142,7 @@ def main():
     print("Disconnectd from server.")
     client.close()
 
-# main function is called
-if __name__ == "__main__":
-    main()
+# If RSA and AES keys were sucessfully loaded, run the main function
+if keys[0] == 1:
+    if __name__ == "__main__":
+        main()
