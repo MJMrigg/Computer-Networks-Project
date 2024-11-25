@@ -90,9 +90,9 @@ def client_handling(conn, addr):
 
             # Determine which command to execute
             if command.lower() == "upload":
-                file_upload(conn, args, private_key)
+                file_upload(conn, args)
             elif command.lower() == "download":
-                file_download(conn, args, public_key)
+                file_download(conn, args)
             elif command.lower() == "delete":
                 file_delete(conn, args, public_key)
             elif command.lower() == "dir":
@@ -113,7 +113,7 @@ def client_handling(conn, addr):
 
 # Function to handle file uploads from client
 # Function to handle file uploads from client in chunks
-def file_upload(client_socket, args, key):
+def file_upload(client_socket, args):
     """
     Uploads a file from the client in chunks, allowing for large file transfers.
     Parameters:
@@ -121,7 +121,7 @@ def file_upload(client_socket, args, key):
     - args: command arguments containing the filename
     """
     if len(args) < 1:
-        client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), key))
+        client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), public_key))
         return
 
     # See if the client is trying to upload to a nonexistent path
@@ -132,11 +132,13 @@ def file_upload(client_socket, args, key):
         filepath = os.path.join(filepath, paths[i])
         if(not(os.path.exists(filepath))):
             # If they are, tell the client
-            client_socket.send(rsa.encrypt(f"Error: The path {filepath} does not exist.".encode(FORMAT), key))
+            client_socket.send(rsa.encrypt(f"Error: The path {filepath} does not exist.".encode(FORMAT), public_key))
             return
     filepath = os.path.join(BASE_DIR, args[0])
 
-    file_size = client_socket.recv(SIZE).decode(FORMAT)
+    file_size = client_socket.recv(SIZE)
+    print(file_size)
+    file_size = rsa.decrypt(file_size, private_key).decode(FORMAT)
     file_size = int(file_size)
     # Prepare to receive the file in chunks
     with open(filepath, 'wb') as file:
@@ -159,11 +161,11 @@ def file_upload(client_socket, args, key):
         del decryptor
         
     # Confirm upload success to client
-    client_socket.send(rsa.encrypt("File uploaded successfully.".encode(FORMAT), key))
+    client_socket.send(rsa.encrypt("File uploaded successfully.".encode(FORMAT), public_key))
 
 
 # Function to handle file downloads for client
-def file_download(client_socket, args, key):
+def file_download(client_socket, args):
     """
     Send a file to the client for download.
     Parameters:
@@ -171,7 +173,7 @@ def file_download(client_socket, args, key):
     - args: command arguments containing the filename
     """
     if len(args) < 1:
-        client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), key))
+        client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), public_key))
         return
 
     filename = args[0]
@@ -180,7 +182,7 @@ def file_download(client_socket, args, key):
 
     # Check if file exists before sending
     if os.path.exists(filepath):
-        client_socket.send(rsa.encrypt(f"{filesize}".encode(FORMAT), key))  # Send file size
+        client_socket.send(rsa.encrypt(f"{filesize}".encode(FORMAT), public_key))  # Send file size
         with open(filepath, 'rb') as file:
             # Use AES to encrypt the file data
             encryptor = AES.new(cipher_key, AES.MODE_EAX, nonce)
@@ -189,7 +191,7 @@ def file_download(client_socket, args, key):
             client_socket.sendall(encrypted)
             del encryptor
     else:
-        client_socket.send(rsa.encrypt("File not found".encode(FORMAT), key))
+        client_socket.send(rsa.encrypt("File not found".encode(FORMAT), public_key))
 
 
 # Function to handle file deletion requests from client
