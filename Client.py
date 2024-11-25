@@ -109,7 +109,7 @@ def file_download(client_socket, args):
         return
 
 # FUNCTION: UPLOAD
-def file_upload(client_socket, args, key):
+def file_upload(client_socket, args):
     """
     Upload a file to the server
     Parameters:
@@ -123,8 +123,13 @@ def file_upload(client_socket, args, key):
 
     # Check if file exists before sending
     if os.path.exists(filepath):
-        filesize = str(os.path.getsize(filepath))
-        client_socket.send(f"{filesize}".encode(FORMAT)) # Send file size
+        filesize = os.path.getsize(filepath)
+        print(filesize)
+        filesize = f"{filesize}".encode(FORMAT)
+        print(filesize)
+        filesize = rsa.encrypt(filesize, public_key)
+        print(filesize)
+        client_socket.send(filesize) # Send file size
         with open(filepath, 'rb') as file:
             # Encrypt and send File data
             encryptor = AES.new(cipher_key, AES.MODE_EAX, nonce)
@@ -160,7 +165,7 @@ def main():
         # Certain answers to certain commands require more logic
         if cmd.lower() == "upload":
             # What happens in this function will determine if the client ends up waiting for a response or not
-            waiting = file_upload(client, args, public_key)
+            waiting = file_upload(client, args)
         elif cmd.lower() == "download":
             file_download(client, args)
             waiting = 0 # In this case, the server's responses will be just the file data, so we will not wait for the server's to send something after the file is downloaded
