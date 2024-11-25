@@ -12,7 +12,7 @@ PORT = 4450  # Server port
 ADDR = (IP, PORT)  # Server address (IP, Port)
 SIZE = 1024  # Buffer size for receiving data
 FORMAT = "utf-8"  # Encoding format for messages
-BASE_DIR = "./server_files"  # Directory to store uploaded files
+BASE_DIR = "server_files"  # Directory to store uploaded files
 PASSWORD = "Rosebud26" # Password to access the server
 
 # Ensure base directory exists for file storage
@@ -30,14 +30,14 @@ def load_or_generate_keys():
         with open("private_key.pem", "rb") as f:
             private_key = rsa.PrivateKey.load_pkcs1(f.read())
         with open("cipher_key.pem", "rb") as f:
-            ciper_key = f.read()
+            cipher_key = f.read()
         with open("nonce.pem", "rb") as f:
             nonce = f.read()
     else:
         # Generate new keys
         public_key, private_key = rsa.newkeys(2048)
-        cipher_key = os.random(16)
-        nonce = os.random(16)
+        cipher_key = os.urandom(16)
+        nonce = os.urandom(16)
         # Save keys to files
         with open("public_key.pem", "wb") as f:
             f.write(public_key.save_pkcs1("PEM"))
@@ -49,9 +49,8 @@ def load_or_generate_keys():
             f.write(nonce)
     return public_key, private_key, cipher_key, nonce
 
-# Load or generate RSA keys and create AES cipher
+# Load or generate RSA keys and create AES encryptor and decryptor
 public_key, private_key, cipher_key, nonce = load_or_generate_keys()
-cipher = AES.new(cipher_key, AES.MODE_EAX, nonce)
 
 # Function to handle each client connection
 def client_handling(conn, addr):
@@ -91,7 +90,7 @@ def client_handling(conn, addr):
 
             # Determine which command to execute
             if command.lower() == "upload":
-                file_upload(conn, args, public_key)
+                file_upload(conn, args, private_key)
             elif command.lower() == "download":
                 file_download(conn, args, public_key)
             elif command.lower() == "delete":
@@ -125,14 +124,24 @@ def file_upload(client_socket, args, key):
         client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), key))
         return
 
-    # Retrieve the filename and expected file size from the client
-    filename = args[0]
-    file_size = int(rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT))
-    filepath = os.path.join(BASE_DIR, filename)
+    # See if the client is trying to upload to a nonexistent path
+    filepath = args[0]
+    paths = filepath.split('\\')
+    filepath = BASE_DIR
+    for i in range(0,len(paths)-1):
+        filepath = os.path.join(filepath, paths[i])
+        if(not(os.path.exists(filepath))):
+            # If they are, tell the client
+            client_socket.send(rsa.encrypt(f"Error: The path {filepath} does not exist.".encode(FORMAT), key))
+            return
+    filepath = os.path.join(BASE_DIR, args[0])
 
+    file_size = client_socket.recv(SIZE).decode(FORMAT)
+    file_size = int(file_size)
     # Prepare to receive the file in chunks
     with open(filepath, 'wb') as file:
         received_size = 0
+        received_data = b''
         while received_size < file_size:
             # Determine chunk size (use SIZE or remaining bytes if less than SIZE)
             chunk_size = min(SIZE, file_size - received_size)
@@ -142,9 +151,13 @@ def file_upload(client_socket, args, key):
                 break
 
             # Write the chunk to the file and update the received size
-            file.write(chunk)
             received_size += len(chunk)
-
+            received_data += chunk
+        # Decrpyt the data and using AES and write it to the file
+        decryptor = AES.new(cipher_key, AES.MODE_EAX, nonce)
+        file.write(decryptor.decrypt(received_data))
+        del decryptor
+        
     # Confirm upload success to client
     client_socket.send(rsa.encrypt("File uploaded successfully.".encode(FORMAT), key))
 
@@ -158,7 +171,7 @@ def file_download(client_socket, args, key):
     - args: command arguments containing the filename
     """
     if len(args) < 1:
-        client_socket.send(rsa.encrypt("Filename required.", key))
+        client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), key))
         return
 
     filename = args[0]
@@ -170,7 +183,11 @@ def file_download(client_socket, args, key):
         client_socket.send(rsa.encrypt(f"{filesize}".encode(FORMAT), key))  # Send file size
         with open(filepath, 'rb') as file:
             # Use AES to encrypt the file data
-            client_socket.send(cipher.encrypt(file.read()))
+            encryptor = AES.new(cipher_key, AES.MODE_EAX, nonce)
+            encrypted = encryptor.encrypt(file.read())
+            print(encrypted)
+            client_socket.sendall(encrypted)
+            del encryptor
     else:
         client_socket.send(rsa.encrypt("File not found".encode(FORMAT), key))
 
@@ -265,3 +282,5 @@ def main():
 # main function is called
 if __name__ == "__main__":
     main()
+
+del decryptor
