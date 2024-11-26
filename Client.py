@@ -2,6 +2,7 @@ import os
 import socket
 import rsa
 from Cryptodome.Cipher import AES
+import "analysis_component.py"
 SIZE = 1024
 FORMAT = "utf-8"
 
@@ -62,6 +63,7 @@ def file_download(client_socket, args):
             return
         # If it could, set its path and receive its data
         file_size = int(response)
+        tempSize = makeTQDM(file_size)
         name = args[0]
         name = name.split("\\")
         filename = name[len(name)-1]
@@ -96,11 +98,13 @@ def file_download(client_socket, args):
                 
                 received_size += len(chunk) # Update received size
                 received_data = received_data + chunk # Add the data to he received data
+                tempSize.update(chunk_size)
             
             # Decrypt the data using AES and write it to the file
             decryptor = AES.new(cipher_key, AES.MODE_EAX, nonce)
             file.write(decryptor.decrypt(received_data))
             del decryptor
+            del tempSize
 
         # Confirm download success to client
         print("File Sucessfully Downloaded. You can find it in your Downloads folder.")
