@@ -2,7 +2,7 @@ import os
 import socket
 import rsa
 from Cryptodome.Cipher import AES
-import "analysis_component.py"
+from analysis_component import *
 SIZE = 1024
 FORMAT = "utf-8"
 
@@ -55,6 +55,7 @@ def file_download(client_socket, args):
     try:
         # See if the file could be retrieved from the server
         response = rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT)
+        client_socket.send(rsa.encrypt("@".encode(FORMAT), public_key)) # Send acknowlegdement
         if(response == 'File not found'):
             print("File not found")
             return
@@ -63,7 +64,7 @@ def file_download(client_socket, args):
             return
         # If it could, set its path and receive its data
         file_size = int(response)
-        tempSize = makeTQDM(file_size)
+        progress = makeTQDM(file_size)
         name = args[0]
         name = name.split("\\")
         filename = name[len(name)-1]
@@ -98,13 +99,13 @@ def file_download(client_socket, args):
                 
                 received_size += len(chunk) # Update received size
                 received_data = received_data + chunk # Add the data to he received data
-                tempSize.update(chunk_size)
+                progress.update(chunk_size)
             
             # Decrypt the data using AES and write it to the file
             decryptor = AES.new(cipher_key, AES.MODE_EAX, nonce)
             file.write(decryptor.decrypt(received_data))
             del decryptor
-            del tempSize
+            del progress
 
         # Confirm download success to client
         print("File Sucessfully Downloaded. You can find it in your Downloads folder.")
@@ -133,8 +134,7 @@ def file_upload(client_socket, args):
         client_socket.send(rsa.encrypt(answer.encode(FORMAT), public_key))
         response = rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT)
         response = response.split("@")
-        print(response)
-        print(response) # Print the server's response
+        print(response[1]) # Print the server's response
         if(response[0] == "2"):
             return 0 # If the client submitted an invalid answer, stop the upload process
     elif(overide[0] != "0"): # If an error happened
@@ -147,10 +147,8 @@ def file_upload(client_socket, args):
 
     # Check if file exists before sending
     if os.path.exists(filepath):
-        client_socket.send(rsa.encrypt(f"{filesize}".encode(FORMAT), public_key))
-        # Wait a quick fraction of a second so that the file data doesn't get received in the same message as the size
-        import time
-        time.sleep(0.1)
+        client_socket.send(rsa.encrypt(f"{filesize}".encode(FORMAT), public_key)) # Send file size
+        rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT) # Receive acknowledgement
         # Send the file contents
         with open(filepath, 'rb') as file:
             # Encrypt and send File data

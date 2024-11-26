@@ -2,7 +2,7 @@ import os
 import socket
 import threading
 import rsa
-import "analysis_component.py"
+from analysis_component import *
 
 # Server configuration
 IP = socket.gethostbyname(socket.gethostname()) # Server hostname
