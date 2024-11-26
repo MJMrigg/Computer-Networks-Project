@@ -124,23 +124,43 @@ def file_upload(client_socket, args):
         client_socket.send(rsa.encrypt("Filename required.".encode(FORMAT), public_key))
         return
 
-    # See if the client is trying to upload to a nonexistent path
-    filepath = args[0]
-    paths = filepath.split('\\')
-    filepath = BASE_DIR
-    for i in range(0,len(paths)-1):
-        filepath = os.path.join(filepath, paths[i])
-        if(not(os.path.exists(filepath))):
-            # If they are, tell the client
-            client_socket.send(rsa.encrypt(f"Error: The path {filepath} does not exist.".encode(FORMAT), public_key))
-            return
+    # If the file already exists, ask if they want to override
     filepath = os.path.join(BASE_DIR, args[0])
-
-    file_size = client_socket.recv(SIZE)
-    print(file_size)
-    file_size = rsa.decrypt(file_size, private_key).decode(FORMAT)
-    file_size = int(file_size)
+    if(os.path.exists(filepath)):
+        client_socket.send(rsa.encrypt("1@Error: File already exists. Do you want to overide it?".encode(FORMAT), public_key))
+        answer = rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT)
+        if(answer[0].lower() == 'y'):
+            client_socket.send(rsa.encrypt("0@Overiding File".encode(FORMAT), public_key))
+        elif(answer[0].lower() == 'n'):
+            # If they don't want to, create a copy of the file by adding a number at the end of it
+            # But first, make sure there aren't already copies of the file that already exist
+            number = 0
+            while(1):
+                number += 1
+                path = filepath.split(".")[0]                
+                names = filepath.split(" (")
+                if(len(names) == 1):
+                    filename = names[0]
+                else:
+                    filename = names[len(path)-2]
+                filetype = filepath.split(".")[1]
+                newFilename = f"{filename} ({number})"
+                if(len(names) == 1):
+                    names[0] = newFilename
+                else:
+                    names[len(names)-2] = newFilename
+                filepath = f"{path}.{filetype}"
+                print(filepath)
+                if(not(os.path.exists(filepath))):
+                    break
+            client_socket.send(rsa.encrypt(f"1@Creating copy of file under name {filepath}".encode(FORMAT), public_key))
+        else:
+           client_socket.send(rsa.encrypt("2@Invalid Response. Canceling Upload".encode(FORMAT), public_key))
+           return
+    else:
+        client_socket.send(rsa.encrypt("0@".encode(FORMAT), public_key))
     # Prepare to receive the file in chunks
+    file_size = int(rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT))
     with open(filepath, 'wb') as file:
         received_size = 0
         received_data = b''
@@ -187,7 +207,6 @@ def file_download(client_socket, args):
             # Use AES to encrypt the file data
             encryptor = AES.new(cipher_key, AES.MODE_EAX, nonce)
             encrypted = encryptor.encrypt(file.read())
-            print(encrypted)
             client_socket.sendall(encrypted)
             del encryptor
     else:
@@ -284,5 +303,3 @@ def main():
 # main function is called
 if __name__ == "__main__":
     main()
-
-del decryptor

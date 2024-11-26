@@ -1,7 +1,7 @@
 audioread==3.0.1
-beautifulsoup4==4.12.3
+beautifulsoup4==4.12.3   
 blinker==1.8.2
-certifi==2023.11.17
+certifi==2023.11.17      
 cffi==1.16.0
 charset-normalizer==3.3.2
 click==8.1.7
@@ -37,6 +37,8 @@ pooch==1.8.0
 pyasn1==0.6.1
 PyAutoGUI==0.9.54
 pycparser==2.21
+pycryptodome==3.21.0
+pycryptodomex==3.21.0
 pydub==0.25.1
 PyGetWindow==0.0.9
 pyglet==2.0.10
@@ -60,6 +62,7 @@ soundfile==0.12.1
 soupsieve==2.5
 soxr==0.3.7
 threadpoolctl==3.2.0
+tqdm==4.67.1
 typing_extensions==4.8.0
 tzdata==2023.3
 urllib3==2.1.0
