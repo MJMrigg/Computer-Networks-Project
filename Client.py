@@ -116,20 +116,38 @@ def file_upload(client_socket, args):
     - client_socket: socket object for the client connection
     - args: command arguments containing the filename
     """
+    # If the client forgot to specify a name for the file
     if(len(args) < 1):
         return 1
+    
+    # Make sure the client isn't overiding a file
+    overide = rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT)
+    overide = overide.split("@")
+    if(overide[0] == "1"): # If they were overiding a file, ask if the client hey want to go through with
+        print(overide[1])
+        answer = input("> ")
+        client_socket.send(rsa.encrypt(answer.encode(FORMAT), public_key))
+        response = rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT)
+        response = response.split("@")
+        print(response)
+        print(response) # Print the server's response
+        if(response[0] == "2"):
+            return 0 # If the client submitted an invalid answer, stop the upload process
+    elif(overide[0] != "0"): # If an error happened
+        print(overide)
+        return 1
+
     filename = args[0]
     filepath = os.path.abspath(filename)
+    filesize = os.path.getsize(filepath)
 
     # Check if file exists before sending
     if os.path.exists(filepath):
-        filesize = os.path.getsize(filepath)
-        print(filesize)
-        filesize = f"{filesize}".encode(FORMAT)
-        print(filesize)
-        filesize = rsa.encrypt(filesize, public_key)
-        print(filesize)
-        client_socket.send(filesize) # Send file size
+        client_socket.send(rsa.encrypt(f"{filesize}".encode(FORMAT), public_key))
+        # Wait a quick fraction of a second so that the file data doesn't get received in the same message as the size
+        import time
+        time.sleep(0.1)
+        # Send the file contents
         with open(filepath, 'rb') as file:
             # Encrypt and send File data
             encryptor = AES.new(cipher_key, AES.MODE_EAX, nonce)
