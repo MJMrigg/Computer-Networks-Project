@@ -2,6 +2,7 @@ import os
 import socket
 import threading
 import rsa
+import "analysis_component.py"
 
 # Server configuration
 IP = socket.gethostbyname(socket.gethostname()) # Server hostname
@@ -114,6 +115,7 @@ def file_upload(client_socket, args, key):
     # Retrieve the filename and expected file size from the client
     filename = args[0]
     file_size = int(rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT))
+    tempSize = makeTQDM(file_size)
     filepath = os.path.join(BASE_DIR, filename)
 
     # Prepare to receive the file in chunks
@@ -130,9 +132,11 @@ def file_upload(client_socket, args, key):
             # Write the chunk to the file and update the received size
             file.write(chunk)
             received_size += len(chunk)
+            tempSize.update(chunk_size)
 
     # Confirm upload success to client
     client_socket.send(rsa.encrypt("File uploaded successfully.".encode(FORMAT), key))
+    del tempSize
 
 
 # Function to handle file downloads for client
