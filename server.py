@@ -3,7 +3,11 @@ import socket
 import threading
 import rsa
 import datetime
+<<<<<<< Updated upstream
 import tqdm
+=======
+from analysis_component import *
+>>>>>>> Stashed changes
 from Cryptodome.Cipher import AES
 
 # Server configuration
@@ -137,6 +141,7 @@ def file_upload(client_socket, args):
             number = 0
             while(1):
                 number += 1
+<<<<<<< Updated upstream
                 path = filepath.split(".")[0]                
                 names = filepath.split(" (")
                 if(len(names) == 1):
@@ -151,6 +156,14 @@ def file_upload(client_socket, args):
                     names[len(names)-2] = newFilename
                 filepath = f"{path}.{filetype}"
                 print(filepath)
+=======
+                path = filepath.split(".")[0]
+                names = path.split(" (")
+                filename = names[0]
+                filetype = filepath.split(".")[1]
+                newFilename = f"{filename} ({number})"
+                filepath = f"{newFilename}.{filetype}"
+>>>>>>> Stashed changes
                 if(not(os.path.exists(filepath))):
                     break
             client_socket.send(rsa.encrypt(f"1@Creating copy of file under name {filepath}".encode(FORMAT), public_key))
@@ -160,7 +173,14 @@ def file_upload(client_socket, args):
     else:
         client_socket.send(rsa.encrypt("0@".encode(FORMAT), public_key))
     # Prepare to receive the file in chunks
+<<<<<<< Updated upstream
     file_size = int(rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT))
+=======
+    msg = client_socket.recv(SIZE)
+    file_size = int(rsa.decrypt(msg, private_key).decode(FORMAT))
+    client_socket(rsa.encrypt("@".encode(FORMAT), public_key))
+    progress = makeTQDM(file_size)
+>>>>>>> Stashed changes
     with open(filepath, 'wb') as file:
         received_size = 0
         received_data = b''
@@ -175,10 +195,18 @@ def file_upload(client_socket, args):
             # Write the chunk to the file and update the received size
             received_size += len(chunk)
             received_data += chunk
+<<<<<<< Updated upstream
+=======
+            progress.update(chunk_size)
+>>>>>>> Stashed changes
         # Decrpyt the data and using AES and write it to the file
         decryptor = AES.new(cipher_key, AES.MODE_EAX, nonce)
         file.write(decryptor.decrypt(received_data))
         del decryptor
+<<<<<<< Updated upstream
+=======
+        del progress
+>>>>>>> Stashed changes
         
     # Confirm upload success to client
     client_socket.send(rsa.encrypt("File uploaded successfully.".encode(FORMAT), public_key))
