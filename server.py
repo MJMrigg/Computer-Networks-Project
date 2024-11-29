@@ -2,7 +2,6 @@ import os
 import socket
 import threading
 import rsa
-import datetime
 from analysis_component import *
 from Cryptodome.Cipher import AES
 
@@ -13,7 +12,7 @@ ADDR = (IP, PORT)  # Server address (IP, Port)
 SIZE = 1024  # Buffer size for receiving data
 FORMAT = "utf-8"  # Encoding format for messages
 BASE_DIR = "server_files"  # Directory to store uploaded files
-PASSWORD = "Rosebud26" # Password to access the server
+PASSCODE = "Rosebud26" # Password to access the server
 
 # Ensure base directory exists for file storage
 if not os.path.exists(BASE_DIR):
@@ -59,16 +58,14 @@ def client_handling(conn, addr):
     Parameters:
     - conn: socket object for the client connection
     - addr: address of the client (IP, port)
-    """
-    print(f"NEW CONNECTION: {addr} connected.")
-    
+    """    
     # Prompt client to enter password needed to access the server
     conn.send(rsa.encrypt("Please Enter Passcode".encode(FORMAT), public_key))
-    password = conn.recv(SIZE) # password the client entered
-    if not password:
+    passcode = conn.recv(SIZE) # password the client entered
+    if not passcode:
         return
-    password = rsa.decrypt(password, private_key).decode(FORMAT) # Decrypt it
-    if password != PASSWORD: # If it was not the correct PASSWORD, deny the client access to the server
+    passcode = rsa.decrypt(passcode, private_key).decode(FORMAT) # Decrypt it
+    if passcode != PASSCODE: # If it was not the correct PASSWORD, deny the client access to the server
         conn.send(rsa.encrypt("Access Denied. Passcode was incorrect.".encode(FORMAT), public_key))
         conn.close()
         print(f"{addr} was disconnected")
@@ -287,7 +284,7 @@ def main():
     # Accept new connections indefinitely
     while True:
         client_socket, client_address = server_socket.accept()
-        print(f"Connection from {client_address} at {datetime.datetime.now()}")
+        print(f"Connection from {client_address}.")
 
         # Start a new thread to handle this client's requests
         client_thread = threading.Thread(target=client_handling, args=(client_socket, client_address))
