@@ -156,6 +156,7 @@ def file_upload(client_socket, args):
             encryptor = AES.new(cipher_key, AES.MODE_EAX, nonce)
             client_socket.sendall(encryptor.encrypt(file.read()))
             del encryptor
+            print("Upload Complete")
         return 1
     else:
        print("File not found")
