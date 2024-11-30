@@ -148,7 +148,7 @@ def file_upload(client_socket, args):
     if os.path.exists(filepath):
         client_socket.send(rsa.encrypt(f"{filesize}".encode(FORMAT), public_key)) # Send file size
         rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT) # Receive acknowledgement
-        print(f"Uploading {filename}(This may take some time)")
+        print(f"Uploading file(This may take some time)")
         # Send the file contents
         with open(filepath, 'rb') as file:
             # Encrypt and send File data

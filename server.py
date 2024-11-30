@@ -152,7 +152,7 @@ def file_upload(client_socket, addr, args):
     msg = client_socket.recv(SIZE)
     file_size = int(rsa.decrypt(msg, private_key).decode(FORMAT))
     client_socket.send(rsa.encrypt("@".encode(FORMAT), public_key))
-    print(f"Receiving {filename} from {addr}...")
+    print(f"Receiving file from {addr}...")
     progress = makeTQDM(file_size)
     with open(filepath, 'wb') as file:
         received_size = 0
