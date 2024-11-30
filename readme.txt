@@ -13,9 +13,9 @@ The system allows users to connect to an already existing server within the same
 2.) Type in the server's IP Address and Port Number when prompted to do so. Note, you must have a way of finding this out from the computer where the server is running.
 3.) The server will have a passcode to enter. This is for security reasons. You must have a way finding out this password from the person running the server computer.
 Possible Explanations for Connection Errors:
-1.) Certain security measure's on the server's computer may be preventing you from connecting to it. Ask the server's owner to remove them if possible.
-2.) The server is not in the same network as your computer. Ask the server's owner what network the server is connected to, connect to it, and try again
-3.) One of the files containing encryption and decryption keys is missing. Ask the server's owner to send you the missing files, as if they are missing, the client will refuse to run.
+1.) Certain security measure's on the server's computer may be preventing you from connecting to it. Ask the person running the server to remove them if possible.
+2.) The server is not in the same network as your computer. Ask the person running the server what network the server is connected to, connect to it, and try again
+3.) One of the files containing encryption and decryption keys is missing. Ask the person running the server to send you the missing files, as if they are missing, the client will refuse to run.
 
 Client-Server Interactions:
 There are numerous interactions that a client can have with a server. All of the interactions are done via typing into the interface. The commands to trigger these interactions are as follows
