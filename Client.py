@@ -63,8 +63,6 @@ def file_download(client_socket, args):
             return
         # If it could, set its path and receive its data
         file_size = int(response)
-        print(f"Downloading {filename}...")
-        progress = makeTQDM(file_size)
         name = args[0]
         name = name.split("\\")
         filename = name[len(name)-1]
@@ -72,6 +70,8 @@ def file_download(client_socket, args):
         downloads = get_download_path()
         filepath = f"{downloads}\{filename}"
         number = 0
+        print(f"Downloading {filename}...")
+        progress = makeTQDM(file_size)
         # Check to see if the file already exists in the Downloads folder. If it does, add a number at the end
         while(1):
             if(os.path.exists(filepath)):
@@ -84,7 +84,6 @@ def file_download(client_socket, args):
                 filepath = f"{downloads}\{filename}"
             else:
                 break
-            
         # Prepare to receive the file in chunks
         with open(filepath, 'wb') as file:
             received_size = 0
@@ -156,7 +155,6 @@ def file_upload(client_socket, args):
             encryptor = AES.new(cipher_key, AES.MODE_EAX, nonce)
             client_socket.sendall(encryptor.encrypt(file.read()))
             del encryptor
-            print("Upload Complete")
         return 1
     else:
        print("File not found")
