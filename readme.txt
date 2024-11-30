@@ -29,4 +29,4 @@ There are numerous interactions that a client can have with a server. All of the
 8.) Logout - logout
 
 Creating and Running a New Server:
-The system allows users to create and run a new server. To do so, run the server.py file. When this happens, the server's IP Address and Port Number will appear on the screen. The user must have a way to communicate this information, along with the passcode to access the server, with all of their potential client.
+The system allows users to create and run a new server. To do so, run the server.py file. When this happens, the server's IP Address and Port Number will appear on the screen. The user must have a way to communicate this information, along with the passcode to access the server, with all of their potential clients.
