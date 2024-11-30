@@ -87,7 +87,7 @@ def client_handling(conn, addr):
 
             # Determine which command to execute
             if command.lower() == "upload":
-                file_upload(conn, args)
+                file_upload(conn, addr, args)
             elif command.lower() == "download":
                 file_download(conn, args)
             elif command.lower() == "delete":
@@ -110,7 +110,7 @@ def client_handling(conn, addr):
 
 # Function to handle file uploads from client
 # Function to handle file uploads from client in chunks
-def file_upload(client_socket, args):
+def file_upload(client_socket, addr, args):
     """
     Uploads a file from the client in chunks, allowing for large file transfers.
     Parameters:
@@ -152,6 +152,7 @@ def file_upload(client_socket, args):
     msg = client_socket.recv(SIZE)
     file_size = int(rsa.decrypt(msg, private_key).decode(FORMAT))
     client_socket.send(rsa.encrypt("@".encode(FORMAT), public_key))
+    print(f"Receiving {filename} from {addr}...")
     progress = makeTQDM(file_size)
     with open(filepath, 'wb') as file:
         received_size = 0
