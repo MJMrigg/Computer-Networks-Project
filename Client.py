@@ -55,7 +55,6 @@ def file_download(client_socket, args):
     try:
         # See if the file could be retrieved from the server
         response = rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT)
-        client_socket.send(rsa.encrypt("@".encode(FORMAT), public_key)) # Send acknowlegdement
         if(response == 'File not found'):
             print("File not found")
             return
