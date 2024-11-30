@@ -22,7 +22,7 @@ if not os.path.exists(BASE_DIR):
 # RSA key loading/generation
 def load_or_generate_keys():
     # Check if keys already exist
-    if os.path.exists("private_key.pem") and os.path.exists("public_key.pem"):
+    if os.path.exists("private_key.pem") and os.path.exists("public_key.pem") and os.path.exists("cipher_key.pem") and os.path.exists("nonce.pem"):
         # Load existing keys
         with open("public_key.pem", "rb") as f:
             public_key = rsa.PublicKey.load_pkcs1(f.read())
