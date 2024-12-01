@@ -158,7 +158,8 @@ def file_upload(client_socket, args):
         return 1
     else:
        print("File not found")
-       client_socket.send(rsa.encrypt("Nevermind".ecode(FORMAT), public_key))
+       msg = "Nevermind"
+       client_socket.send(rsa.encrypt(f"{msg}".encode(FORMAT), public_key))
        return 0
   
 # MAIN FUNCTION
