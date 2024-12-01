@@ -142,10 +142,10 @@ def file_upload(client_socket, args):
 
     filename = args[0]
     filepath = os.path.abspath(filename)
-    filesize = os.path.getsize(filepath)
 
     # Check if file exists before sending
     if os.path.exists(filepath):
+        filesize = os.path.getsize(filepath)
         client_socket.send(rsa.encrypt(f"{filesize}".encode(FORMAT), public_key)) # Send file size
         rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT) # Receive acknowledgement
         print(f"Uploading file(This may take some time)")
