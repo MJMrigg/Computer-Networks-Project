@@ -148,9 +148,11 @@ def file_upload(client_socket, addr, args):
            return
     else:
         client_socket.send(rsa.encrypt("0@".encode(FORMAT), public_key))
+    msg = rsa.decrypt(client_socket.recv(SIZE), private_key).decode(FORMAT)
+    if(msg == "Nevermind"): # If the client was trying to upload a nonexistent file
+        return
     # Prepare to receive the file in chunks
-    msg = client_socket.recv(SIZE)
-    file_size = int(rsa.decrypt(msg, private_key).decode(FORMAT))
+    file_size = int(msg)
     client_socket.send(rsa.encrypt("@".encode(FORMAT), public_key))
     print(f"Receiving file from {addr}...")
     progress = makeTQDM(file_size)
@@ -177,6 +179,7 @@ def file_upload(client_socket, addr, args):
         
     # Confirm upload success to client
     client_socket.send(rsa.encrypt("File uploaded successfully.".encode(FORMAT), public_key))
+    print(f"File from {addr} received.")
 
 
 # Function to handle file downloads for client
