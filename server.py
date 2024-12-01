@@ -196,10 +196,10 @@ def file_download(client_socket, args):
 
     filename = args[0]
     filepath = os.path.join(BASE_DIR, filename)
-    filesize = os.path.getsize(filepath)
 
     # Check if file exists before sending
     if os.path.exists(filepath):
+        filesize = os.path.getsize(filepath)
         client_socket.send(rsa.encrypt(f"{filesize}".encode(FORMAT), public_key))  # Send file size
         with open(filepath, 'rb') as file:
             # Use AES to encrypt the file data

@@ -58,8 +58,8 @@ def file_download(client_socket, args):
         if(response == 'File not found'):
             print("File not found")
             return
-        if(response == 'Filename required'):
-            print("Filename required")
+        if(response == 'Filename required.'):
+            print("Filename required.")
             return
         # If it could, set its path and receive its data
         file_size = int(response)
